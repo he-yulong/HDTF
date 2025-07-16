@@ -10,7 +10,7 @@ Usage:
 $ python download.py --output_dir /tmp/data/hdtf --num_workers 8
 ```
 
-You need tqdm and youtube-dl libraries to be installed for this script to work.
+You need tqdm and yt-dlp libraries to be installed for this script to work.
 """
 
 
@@ -39,7 +39,7 @@ def download_hdtf(source_dir: os.PathLike, output_dir: os.PathLike, num_workers:
         **process_video_kwargs,
      ) for vd in download_queue]
     pool = Pool(processes=num_workers)
-    tqdm_kwargs = dict(total=len(task_kwargs), desc=f'Downloading videos into {output_dir} (note: without sound)')
+    tqdm_kwargs = dict(total=len(task_kwargs), desc=f'Downloading videos into {output_dir}')
 
     for _ in tqdm(pool.imap_unordered(task_proxy, task_kwargs), **tqdm_kwargs):
         pass
@@ -109,7 +109,7 @@ def download_and_process_video(video_data: Dict, output_dir: str):
     """
     Downloads the video and cuts/crops it into several ones according to the provided time intervals
     """
-    raw_download_path = os.path.join(output_dir, '_videos_raw', f"{video_data['name']}.mp4")
+    raw_download_path = os.path.join(output_dir, '_videos_raw', video_data['name'])
     raw_download_log_file = os.path.join(output_dir, '_videos_raw', f"{video_data['name']}_download_log.txt")
     download_result = download_video(video_data['id'], raw_download_path, resolution=video_data['resolution'], log_file=raw_download_log_file)
 
@@ -119,7 +119,7 @@ def download_and_process_video(video_data: Dict, output_dir: str):
         return
 
     # We do not know beforehand, what will be the resolution of the downloaded video
-    # Youtube-dl selects a (presumably) highest one
+    # yt-dlp selects a (presumably) highest one
     video_resolution = get_video_resolution(raw_download_path)
     if not video_resolution != video_data['resolution']:
         print(f"Downloaded resolution is not correct for {video_data['name']}: {video_resolution} vs {video_data['name']}. Discarding this video.")
@@ -154,10 +154,8 @@ def download_video(video_id, download_path, resolution: int=None, video_format="
     :param video_id:        YouTube ID of the video.
     :param download_path:   Where to save the video.
     :param video_format:    Format to download.
-    :param log_file:        Path to a log file for youtube-dl.
+    :param log_file:        Path to a log file for yt-dlp.
     :return:                Tuple: path to the downloaded video and a bool indicating success.
-
-    Copy-pasted from https://github.com/ytdl-org/youtube-dl
     """
     # if os.path.isfile(download_path): return True # File already exists
 
@@ -165,13 +163,15 @@ def download_video(video_id, download_path, resolution: int=None, video_format="
         stderr = subprocess.DEVNULL
     else:
         stderr = open(log_file, "a")
-    video_selection = f"bestvideo[ext={video_format}]"
+    # video_selection = f"bestvideo[ext={video_format}]"  # without audio
+    video_selection = f"bestvideo+bestaudio[ext={video_format}]/best[ext={video_format}]"  # with audio
     video_selection = video_selection if resolution is None else f"{video_selection}[height={resolution}]"
     command = [
-        "youtube-dl",
+        "yt-dlp",
         "https://youtube.com/watch?v={}".format(video_id), "--quiet", "-f",
         video_selection,
-        "--output", download_path,
+        "--merge-output-format", video_format,
+        "--output", download_path,  # Add --merge-output-format to make sure merging happens properly
         "--no-continue"
     ]
     return_code = subprocess.call(command, stderr=stderr)
