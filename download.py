@@ -109,7 +109,7 @@ def download_and_process_video(video_data: Dict, output_dir: str):
     """
     Downloads the video and cuts/crops it into several ones according to the provided time intervals
     """
-    raw_download_path = os.path.join(output_dir, '_videos_raw', video_data['name'])
+    raw_download_path = os.path.join(output_dir, '_videos_raw', f"{video_data['name']}.mp4")
     raw_download_log_file = os.path.join(output_dir, '_videos_raw', f"{video_data['name']}_download_log.txt")
     download_result = download_video(video_data['id'], raw_download_path, resolution=video_data['resolution'], log_file=raw_download_log_file)
 
